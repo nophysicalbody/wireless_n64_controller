@@ -64,7 +64,7 @@ void setup()
   digitalWrite(LED,LOW);
 
   // Initialize the RFM69HCW:
-  radio.setCS(10);  //uncomment this if using Pro Micro
+  //radio.setCS(10);  //uncomment this if using Pro Micro
   radio.initialize(FREQUENCY, MYNODEID, NETWORKID);
   radio.setHighPower(); // Always use this for RFM69HCW
 
