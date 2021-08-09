@@ -40,22 +40,23 @@ void setup()
 }
 
 unsigned long n64_status;
+byte sendbuffer[4];
 
 void loop()
 {
   // Poll the controller
   n64_status = pollController();  
-  //Serial.println(response,BIN);
 
-  char sendbuffer[] = {(n64_status >> 24) & 0xFF,
-                       (n64_status >> 16) & 0xFF,
-                       (n64_status >> 8) & 0xFF, 
-                       n64_status & 0xFF};
+  // Split the status into 4 bytes:
+  sendbuffer[0] = n64_status >> 24;
+  sendbuffer[1] = n64_status >> 16;
+  sendbuffer[2] = n64_status >> 8;
+  sendbuffer[3] = n64_status;
 
   // Radio controller status back to console
   radio.send(TONODEID, sendbuffer, 4);
   // Wait
-  delay(250);
+  delay(500);
 }
   
 //  // Set up a "buffer" for characters that we'll send:

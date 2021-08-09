@@ -59,10 +59,6 @@ void setup()
   Serial.print(MYNODEID,DEC);
   Serial.println(" ready");  
 
-  // Set up the indicator LED (optional):
-  pinMode(LED,OUTPUT);
-  digitalWrite(LED,LOW);
-
   // Initialize the RFM69HCW:
   //radio.setCS(10);  //uncomment this if using Pro Micro
   radio.initialize(FREQUENCY, MYNODEID, NETWORKID);
@@ -173,7 +169,7 @@ void loop()
 void Blink(byte PIN, int DELAY_MS)
 // Blink an LED for a given number of ms
 {
-  digitalWrite(PIN,HIGH);
-  delay(DELAY_MS);
-  digitalWrite(PIN,LOW);
+//  digitalWrite(PIN,HIGH);
+//  delay(DELAY_MS);
+//  digitalWrite(PIN,LOW);
 }
