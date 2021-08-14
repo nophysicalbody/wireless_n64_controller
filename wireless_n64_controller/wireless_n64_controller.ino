@@ -39,80 +39,36 @@ void setup()
     radio.encrypt(ENCRYPTKEY);
 }
 
-unsigned long n64_status;
+unsigned long n64_status = 0;
+unsigned long previous_n64_status = 0;
+unsigned long update_timer_ms = 0;
 byte sendbuffer[4];
+
 
 void loop()
 {
   // Poll the controller
   n64_status = pollController();  
 
-  // Split the status into 4 bytes:
-  sendbuffer[0] = n64_status >> 24;
-  sendbuffer[1] = n64_status >> 16;
-  sendbuffer[2] = n64_status >> 8;
-  sendbuffer[3] = n64_status;
-
-  // Radio controller status back to console
-  radio.send(TONODEID, sendbuffer, 4);
-  // Wait
-  delay(500);
-}
+  if ((n64_status != previous_n64_status) || (update_timer_ms >= 500)) {
+    // If there has been a change since last time, or it's been too long since
+    // the last update was sent, send a n64_status update to the controller
+    // Split the status into 4 bytes:
+    sendbuffer[0] = n64_status >> 24;
+    sendbuffer[1] = n64_status >> 16;
+    sendbuffer[2] = n64_status >> 8;
+    sendbuffer[3] = n64_status;
   
-//  // Set up a "buffer" for characters that we'll send:
-//
-//  static char sendbuffer[62];
-//  static int sendlength = 0;
-//
-//  // SENDING
-//
-//  // In this section, we'll gather serial characters and
-//  // send them to the other node if we (1) get a carriage return,
-//  // or (2) the buffer is full (61 characters).
-//
-//  // If there is any serial input, add it to the buffer:
-//
-//  if (Serial.available() > 0)
-//  {
-//    char input = Serial.read();
-//
-//    if (input != '\r') // not a carriage return
-//    {
-//      sendbuffer[sendlength] = input;
-//      sendlength++;
-//    }
-//
-//    // If the input is a carriage return, or the buffer is full:
-//
-//    if ((input == '\r') || (sendlength == 61)) // CR or buffer full
-//    {
-//      // Send the packet!
-//      Serial.print("sending to node ");
-//      Serial.print(TONODEID, DEC);
-//      Serial.print(", message [");
-//      for (byte i = 0; i < sendlength; i++)
-//        Serial.print(sendbuffer[i]);
-//      Serial.println("]");
-//
-//      // There are two ways to send packets. If you want
-//      // acknowledgements, use sendWithRetry():
-//
-//      if (USEACK)
-//      {
-//        if (radio.sendWithRetry(TONODEID, sendbuffer, sendlength))
-//          Serial.println("ACK received!");
-//        else
-//          Serial.println("no ACK received");
-//      }
-//
-//      // If you don't need acknowledgements, just use send():
-//
-//      else // don't use ACK
-//      {
-//        radio.send(TONODEID, sendbuffer, sendlength);
-//      }
-//
-//      sendlength = 0; // reset the packet
-//    }
-//  }
-//}
+    // Radio controller status back to console
+    radio.send(TONODEID, sendbuffer, 4);
+
+    // Reset the timer
+    update_timer_ms = 0;
+
+  } else {
+    update_timer_ms += 20;
+  }
+  previous_n64_status = n64_status;
+  // Wait
+  delay(20);
+}
