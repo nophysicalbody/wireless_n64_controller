@@ -34,9 +34,53 @@
 
 #define GN_LED 5
 #define RD_LED 4
+#define TX_PIN 9    // Connect to ATtiny85 N64 Controller RX pin
+#define CLK_PIN 8   // Connect to ATtiny85 N64 Controller CLK pin
+#define TIMEOUT_PERIOD_MS 2
 
 // Create a library object for our RFM69HCW module:
 RFM69 radio;
+
+int synchronous_write_byte(byte out){
+  for (int b=0; b<8; b++) {
+    // Wait for falling edge on CLK_PIN
+    long start_time = millis();
+    while (digitalRead(CLK_PIN)) {
+      if ((millis() - start_time) > TIMEOUT_PERIOD_MS) {
+        return 0; // Indicate timeout
+      }
+    }
+    // Rising edge has occurred. Write MSB to TX_PIN
+    digitalWrite(TX_PIN, out & 0b10000000);
+    out = out << 1;
+
+    // Wait for rising edge:
+      while (!digitalRead(CLK_PIN)) {
+      if ((millis() - start_time) > TIMEOUT_PERIOD_MS) {
+        return 0; // Indicate timeout
+      }
+    }
+  }
+  return 1;
+}
+
+void write_32_bit_controller_value(uint32_t out){
+  // Assemble components
+  byte byte_0 = (out >> 24) & 0xFF;
+  byte byte_1 = (out >> 16) & 0xFF;
+  byte byte_2 = (out >> 8) & 0xFF;
+  byte byte_3 = out & 0xFF;
+  byte checksum = byte_0 + byte_1 + byte_2 + byte_3;
+
+  // Send bytes to virtual controller
+  digitalWrite(TX_PIN, LOW); // Set TX line low to indicate we wish to start sending
+  synchronous_write_byte(byte_0);
+  synchronous_write_byte(byte_1);
+  synchronous_write_byte(byte_2);
+  synchronous_write_byte(byte_3);
+  synchronous_write_byte(checksum);
+  digitalWrite(TX_PIN, HIGH);
+}
 
 void setup()
 {
@@ -57,6 +101,9 @@ void setup()
   // set up indicators
   pinMode(GN_LED, OUTPUT);
   pinMode(RD_LED, OUTPUT);
+  // set up IO for virtual n64 controller interface
+  pinMode(CLK_PIN, INPUT);
+  pinMode(TX_PIN, OUTPUT);
 }
 
 
@@ -79,6 +126,8 @@ void loop()
     // If the Start button is pressed, light the red indicator
     digitalWrite(RD_LED, bool(n64_status & START_IDX));
 
+    // Pass the update synchronously to the virtual n64 controller
+    write_32_bit_controller_value(n64_status);
     //Serial.println(n64_status, HEX);
   }
 }
