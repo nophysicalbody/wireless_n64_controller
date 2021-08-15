@@ -1,13 +1,42 @@
-# wireless_n64_controller
+# Wireless Nintendo 64 Controller Project
 
-At this point, this is just an experiment.
+# Overview
 
-Sender application (arduino UNO)
+This page describes my project to make a Nintendo 64 controller wireless. 
+You plug your favourite controller into the transmitter, then plug the receiver into the console.
 
-* Reads N64 controller state
-* Sends this state over RFM69
+The system is built on Arduino/AVR and utilises the popular RFM69 radio modules for wireless communication.
 
-Receiver application (arduino DUE)
+## Hardware
 
-* Receives n64 data from RFM69
-* Displays values on serial console
+The transmitter (what you plug the controller into) consists of:
+
+* 3.3V Arduino Pro Mini, the brains of the operation
+* Sparkfun RFM69 Breakout, to enable wireless communication
+* Breadboard, breadboard power supply and 7.4V battery.
+* Half a N64 controller extension cord (the end that connects to a controller)
+
+The receiver (what plugs into the console) consists of:
+
+* Another 3.3V Arduino Pro Mini
+* Another Sparkfun RFM69 Breakout
+* ATtiny85 dedicated to handling communication with the console
+* Breadboard.
+* The other half of the N64 controller extension cord (the end that connects to the console)
+
+## Software
+
+Transmitter software is located in the **wireless_n64_controller** sketch.
+Flash **wireless_n64_controller.ino** to the Arduino Pro Mini on the transmitter.
+
+Receiver software is located in the **wireless_n64_receiver** sketch.
+Flash **wireless_n64_receiver.ino** to the Arduino Pro Mini on the receiver.
+Flash the ATtiny85 microcontroller with the software/procedure here:
+https://github.com/nophysicalbody/n64_if_firmware
+
+## Breadboard set up
+
+Picture goes here
+
+
+
