@@ -210,36 +210,38 @@ void setup()
 }
 
 volatile byte n64_status_buffer[4];
+unsigned long n64_status = 0;
 
 void loop()
 {
   //delay(100);
   if (radio.receiveDone() && (radio.DATALEN==4)) // Got a 4 byte n64 status
   {
-//    n64_status = 0;
-//    // Read out the information:
-//    for (byte i = 0; i < 4; i++){
-//      n64_status = n64_status << 8;
-//      n64_status += radio.DATA[i];
-//    }
+
     // Read out the information:
     for (byte i = 0; i < 4; i++){
       n64_status_buffer[i] = radio.DATA[i];
     }
 
-    // If the B button is pressed, light the green indicator
-    //digitalWrite(GN_LED, bool(n64_status & A_IDX));
-
-    // If the Start button is pressed, light the red indicator
-    //digitalWrite(RD_LED, bool(n64_status & START_IDX));
-
-    // Update values being fed to console
+    // Update values used by ISR
     noInterrupts();
     N64_CONTROLLER_STATE[0] = n64_status_buffer[0];
     N64_CONTROLLER_STATE[1] = n64_status_buffer[1];
     N64_CONTROLLER_STATE[2] = n64_status_buffer[2];
     N64_CONTROLLER_STATE[3] = n64_status_buffer[3];
     interrupts();
+
+    n64_status = 0;
+    // Read out the information:
+    for (byte i = 0; i < 4; i++){
+      n64_status = n64_status << 8;
+      n64_status += radio.DATA[i];
+    }
+    // If the B button is pressed, light the green indicator
+    digitalWrite(GN_LED, bool(!(n64_status & A_IDX)));
+
+    // If the Start button is pressed, light the red indicator
+    digitalWrite(RD_LED, bool(n64_status & START_IDX));
 
     // Pass the update synchronously to the virtual n64 controller
     //write_32_bit_controller_value(n64_status);
