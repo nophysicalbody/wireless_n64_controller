@@ -20,8 +20,10 @@ extern "C" {
 //unsigned long pollController(void);
 //void handle_command_from_console(volatile byte *N64_CONTROLLER_STATE);
 volatile byte get_incoming_command_from_console(void);
+volatile byte n64_read(void);
 //void respond_to_poll_command(volatile byte N64_CONTROLLER_STATE);
-void respond_to_status_command(volatile byte N64_CONTROLLER_STATUS);
+//void respond_to_status_command(volatile byte N64_CONTROLLER_STATUS);
+void n64_send(volatile byte n64_message, volatile byte length_in_bytes);
 //volatile byte consoleRequestMessage = N64_NO_MESSAGE;
 
 

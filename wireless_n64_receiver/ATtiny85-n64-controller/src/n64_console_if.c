@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include "n64_console_if.h"
 
-volatile byte get_incoming_command_from_console() {
+volatile byte n64_read() {
 	volatile byte consoleRequestMessage;
 	asm volatile(
 		// Save the state of the first 3 registers we use
@@ -51,7 +51,7 @@ volatile byte get_incoming_command_from_console() {
 	
 //}
 
-void respond_to_status_command(volatile byte N64_CONTROLLER_STATUS) {
+void n64_send(volatile byte n64_message, volatile byte length_in_bytes) {
 	asm volatile (
 	// Change DDR so that pin is an output
 		"sbi 0x17, 2      \n\t"
@@ -61,25 +61,27 @@ void respond_to_status_command(volatile byte N64_CONTROLLER_STATUS) {
 		"push r20 \n\t"
 		"push r21 \n\t"
 		"push r22 \n\t"
-		//"push r23 \n\t"
+		"push r23 \n\t"
 		
-		// Respond with controller state
-		 "respondWithPoll: ldi r19, 24      \n\t" // initialise loop count - 24 bits to send
-		 // Load controller state from supplied memory address
-		 "ld r20, %a0+     \n\t"
-		 "ld r21, %a0+     \n\t"
-		 "ld r22, %a0+     \n\t"
-		 //"ld r23, %a1+      \n\t"
-		 
-		 //"ldi r20, 0b00000101     \n\t" // initialise byte 0
-		 //"ldi r21, 0b00000000     \n\t" // initialise byte 1
-		 //"ldi r22, 0b00000000     \n\t" // initialise byte 2
+		// R21 will contain the bytes remaining to be sent
+		"ld r21, %a1		\n\t"
+		"byte_loop_start: ldi r19, 8		\n\t" // number of bits in a byte
+		// Load next byte to be sent into R20
+		"ld r20, %a0+     \n\t"
+		
+		//// Respond with controller state
+		 //"respondWithPoll: ldi r19, 24      \n\t" // initialise loop count - 24 bits to send
+		 //// Load controller state from supplied memory address
+		 //"ld r20, %a0+     \n\t"
+		 //"ld r21, %a0+     \n\t"
+		 //"ld r22, %a0+     \n\t"
+		 //"ld r23, %a0+      \n\t"
 
-		 "start:  cbi 0x18, 2      \n\t" // set IO low
-		 //"rol r23  \n\t"   // "nop \n\t"
+		 "bit_loop_start:  cbi 0x18, 2      \n\t" // set IO low
+		 "nop \n\t" // "rol r23  \n\t"   // "nop \n\t"
 		 "nop \n\t"
-		 "rol r22   \n\t"  // "nop \n\t"
-		 "rol r21  \n\t"   // "nop \n\t"
+		 "nop \n\t" //"rol r22   \n\t"  // "nop \n\t"
+		 "nop \n\t"
 		 "rol r20          \n\t" //rotate left, placing 0th bit into carry flag
 		 "brcc send0       \n\t" //jump to 'send0' if bit was zero, otherwise continue
 		 "nop \n\t"
@@ -102,9 +104,13 @@ void respond_to_status_command(volatile byte N64_CONTROLLER_STATUS) {
 		   "nop \n\t"
 		   "nop \n\t"
 
-		 // Check if we need to run again
+		 // Check if we have finished sending the byte
 		 "end: dec r19        \n\t"
-		 "brne start         \n\t"
+		 "brne bit_loop_start         \n\t"
+		 
+		 //Check if we have finished sending the whole message
+		 "dec r21	\n\t"
+		 "brne byte_loop_start		\n\t"
 
 		 // Send stop bit - a 2uS low pulse
 		 "nop \n\t"
@@ -120,16 +126,92 @@ void respond_to_status_command(volatile byte N64_CONTROLLER_STATUS) {
 		 "quit: cbi 0x17, 2      \n\t"
 
 		 // Return registers used in ISR to their initial state
-		 //"pop r23 \n\t"
+		 "pop r23 \n\t"
 		 "pop r22 \n\t"
 		 "pop r21 \n\t"
 		 "pop r20 \n\t"
 		 "pop r19 \n\t"
 		 "pop r18 \n\t"
-		 :: "e" (N64_CONTROLLER_STATUS)
+		 :: "e" (n64_message), "e" (&length_in_bytes)
 		 : "r24"
   );
 }
+
+//void n64_send(volatile byte n64_message, volatile byte length_in_bytes) {
+	//asm volatile (
+	//// Change DDR so that pin is an output
+		//"sbi 0x17, 2      \n\t"
+		//// Save the current state of the next 4 registers we need
+		//"push r18 \n\t"
+		//"push r19 \n\t"
+		//"push r20 \n\t"
+		//"push r21 \n\t"
+		//"push r22 \n\t"
+		//"push r23 \n\t"
+		
+		//// Respond with controller state
+		 //"respondWithPoll: ldi r19, 24      \n\t" // initialise loop count - 24 bits to send
+		 //// Load controller state from supplied memory address
+		 //"ld r20, %a0+     \n\t"
+		 //"ld r21, %a0+     \n\t"
+		 //"ld r22, %a0+     \n\t"
+		 //"ld r23, %a0+      \n\t"
+
+		 //"start:  cbi 0x18, 2      \n\t" // set IO low
+		 //"rol r23  \n\t"   // "nop \n\t"
+		 //"nop \n\t"
+		 //"rol r22   \n\t"  // "nop \n\t"
+		 //"rol r21  \n\t"   // "nop \n\t"
+		 //"rol r20          \n\t" //rotate left, placing 0th bit into carry flag
+		 //"brcc send0       \n\t" //jump to 'send0' if bit was zero, otherwise continue
+		 //"nop \n\t"
+		 //// send a "one"
+		   //"sbi 0x18, 2      \n\t"
+		   //"ldi r18, 5       \n\t"
+		   //"zhloop: dec r18   \n\t"
+		   //"brne zhloop       \n\t"
+		 //"nop  \n\t"
+		 //"nop  \n\t"
+		 //"rjmp end  \n\t"
+
+		 //// send a "zero"
+		 //"send0: ldi r18, 5       \n\t"
+		   //"nop              \n\t"
+		   //"olloop: dec r18    \n\t"
+		   //"brne olloop        \n\t"
+		   //"sbi 0x18, 2      \n\t"
+		   //"nop \n\t"
+		   //"nop \n\t"
+		   //"nop \n\t"
+
+		 //// Check if we need to run again
+		 //"end: dec r19        \n\t"
+		 //"brne start         \n\t"
+
+		 //// Send stop bit - a 2uS low pulse
+		 //"nop \n\t"
+		 //"nop \n\t"
+		 //"nop \n\t"
+		 //"cbi 0x18, 2      \n\t" // set IO low
+		 //"ldi r18, 5      \n\t"
+		 //"stopBitLoop: dec r18         \n\t"
+		 //"brne stopBitLoop              \n\t"
+		 //"sbi 0x18, 2      \n\t"
+		 
+		 //// Change DDR so that pin is an input again
+		 //"quit: cbi 0x17, 2      \n\t"
+
+		 //// Return registers used in ISR to their initial state
+		 //"pop r23 \n\t"
+		 //"pop r22 \n\t"
+		 //"pop r21 \n\t"
+		 //"pop r20 \n\t"
+		 //"pop r19 \n\t"
+		 //"pop r18 \n\t"
+		 //:: "e" (n64_message), "r" (length_in_bytes)
+		 //: "r24"
+  //);
+//}
 
 //void handle_command_from_console(volatile byte *N64_CONTROLLER_STATE) {
 	//volatile byte consoleRequestMessage;

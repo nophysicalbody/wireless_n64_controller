@@ -13,16 +13,17 @@ const int LED_PIN = 0;
 const int serial_half_period_delay_us = 26; //1000000 / (BAUDRATE_EXT * 2);
 
 volatile byte N64_CONTROLLER_STATE[4] = {0,0,0,0};
-volatile byte N64_CONTROLLER_STATUS[3] = {0x05,0x00,0x00};
-volatile byte console_command_id;
+//volatile byte N64_CONTROLLER_STATUS[3] = {0x05,0x00,0x00};
+volatile byte N64_CONTROLLER_STATUS[3] = {0xAF,0xFA,0x50};
+volatile byte console_command;
 
 ISR(INT0_vect)
 {
   GIMSK = 0; // turn off all interrupts
 
-  console_command_id = get_incoming_command_from_console();
-  if (console_command_id == N64_STATUS) {
-    respond_to_status_command(N64_CONTROLLER_STATUS);
+  console_command = n64_read();
+  if (console_command == N64_STATUS) {
+    n64_send(N64_CONTROLLER_STATUS, 3);
   }
   
   //handle_command_from_console(N64_CONTROLLER_STATE);
