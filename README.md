@@ -33,9 +33,11 @@ Receiver software is located in the **wireless_n64_receiver** sketch.
 Flash **wireless_n64_receiver.ino** to the Arduino Pro Mini on the receiver.
 Flash **ATtiny85-n64-controller.ino** to the ATtiny85 on the receiver.
 
-## Breadboard set up
+## Breadboard set up: Transmitter (Connect to controller)
 
-Picture goes here
+![Transmitter](fritzing/transmitter_bb.png?raw=True)
 
+## Breadboard set up: Receiver (Connect to console)
 
+![Transmitter](fritzing/receiver_bb.png?raw=True)
 
