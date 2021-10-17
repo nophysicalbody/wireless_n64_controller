@@ -1,24 +1,30 @@
 #include "src/n64_console_if.h"
 
-// Specify I/O connections
+// I/O connections
 const int N64_SIG_PIN = 2;
 const int CLK_PIN = 1;
 const int RX_PIN = 3;
 
-#define BAUDRATE_EXT 19200
-#define NO_BITS_TO_READ_EXT 40 // 5 * 8 
-const int serial_half_period_delay_us = 26; //1000000 / (BAUDRATE_EXT * 2);
+// Syncronous SPI "inspired" communications
+const int serial_half_period_delay_us = 26; /* (1000000 / (BAUDRATE * 2)) = 26, if BAUDRATE is 19200 */
 
-volatile byte N64_CONTROLLER_STATE[4] = {0,0,0,0};
-volatile byte N64_CONTROLLER_STATUS[3] = {0x05,0x00,0x00};
+// Buffers to hold controller configuration, button/joystick state, and commands read from the console
+volatile byte N64_CONTROLLER_STATE[4] = {0,0,0,0};          // Button/joystick state
+volatile byte N64_CONTROLLER_STATUS[3] = {0x05,0x00,0x00};  // Controller configuration
+volatile byte console_command;                              // Commands from the console
 
-volatile byte console_command;
-
+// The interrupt service routine - this is where the magic happens!
 ISR(INT0_vect)
 {
-  GIMSK = 0; // turn off all interrupts
+  // Runs when falling edge detected on N64 signal pin. I.e: Console is sending command!
+  
+  // Firstly, turn off all other interrupts (this section is carefully timed assembly)
+  GIMSK = 0; 
 
+  // Read the command from the console, store in console_command
   console_command = n64_read();
+
+  // Reply to console command with the requested information
   if (console_command == N64_REQUEST_STATUS) {
     n64_send(N64_CONTROLLER_STATUS, 3);
   } else if (console_command == N64_REQUEST_POLL) {
@@ -44,31 +50,22 @@ void setup()
   // Set outputs to the correct initial state
   digitalWrite(CLK_PIN, HIGH);
 
+  // Set WatchDog Timer Control Register (0x21) to 0x0E to enable a 1 second watchdog timer that resets.
   asm volatile(
-    // Set WatchDog Timer Control Register (0x21) to 0x0E to enable a 1 second watchdog timer that resets.
     "push r16     \n\t"
     "ldi r16, 0x0E \n\t"
     "out 0x21, r16 \n\t"
     "pop r16      \n\t"
   );
   
-  // Configure pin change interrupts on pin 2/
+  // Configure pin change interrupts on pin 2.
   GIMSK |= (1 << INT0);   // external interrupt enable
-  MCUCR = 0b10; // configure to trigger interrupt on falling edge
+  MCUCR = 0b10;           // configure to trigger interrupt on falling edge
   sei();                  // enable interrupts
   
   // Serial for troubleshooting
   //Ser.begin(19200);
 }
-
-byte incomingByte0;
-byte incomingByte1;
-byte incomingByte2;
-byte incomingByte3;
-byte checksumByte;
-
-bool previous_rx_state = HIGH;
-bool update_available = false;
 
 byte synchronous_read_byte() {
   byte buff = 0x00;
@@ -85,6 +82,16 @@ byte synchronous_read_byte() {
     }
   return buff;
 }
+
+// Variables for reading button/joystick state from controller
+byte incomingByte0;
+byte incomingByte1;
+byte incomingByte2;
+byte incomingByte3;
+byte checksumByte;
+
+bool previous_rx_state = HIGH;
+bool update_available = false;
 
 void loop()
 {
@@ -111,7 +118,6 @@ void loop()
     } else {
       update_available = false;
     }
-    //update_available = ((incomingByte0 + incomingByte1 + incomingByte2 + incomingByte3) & 0xFF) == checksumByte;
   }
 
   if (update_available) {
@@ -124,5 +130,6 @@ void loop()
     GIMSK = 0b01100000; // turn external interrupts back on
     update_available = false;
   }
+  
   previous_rx_state = rx_state;
 }
