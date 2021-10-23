@@ -16,59 +16,76 @@
 #define MYNODEID      1   // My node ID
 #define TONODEID      2   // Destination node ID
 #define FREQUENCY     RF69_915MHZ
-#define ENCRYPT       true // Set to "true" to use encryption
 #define ENCRYPTKEY    "TOPSECRETPASSWRD" // Use the same 16-byte key on all nodes
+
+// IO configuration
+#define LED_PIN 9
 
 // Create a library object for our RFM69HCW module:
 RFM69 radio;
 
 void setup()
 {
-  // Open a serial port so we can peek into what's going on
-  Serial.begin(9600);
-  Serial.print("Node ");
-  Serial.print(MYNODEID,DEC);
-  Serial.println(" ready");  
-
   // Initialize the RFM69HCW:
   radio.initialize(FREQUENCY, MYNODEID, NETWORKID);
   radio.setHighPower(); // Always use this for RFM69HCW
+  radio.encrypt(ENCRYPTKEY);
 
-  // Turn on encryption if desired:
-  if (ENCRYPT)
-    radio.encrypt(ENCRYPTKEY);
+  pinMode(LED_PIN, OUTPUT);
 }
 
-unsigned long n64_status = 0;
-unsigned long previous_n64_status = 0;
-unsigned long update_timer_ms = 0;
-byte sendbuffer[4];
+
+#define LOOP_PERIOD_MS 20
+#define INACTIVITY_TIME_MS 5000
+
+boolean controller_state_recently_changed(unsigned long new_status){
+  static unsigned long prev_status = new_status;
+  static unsigned long inactivity_timer = 0;
+
+  if (new_status == prev_status) {
+    inactivity_timer += LOOP_PERIOD_MS;
+  } else {
+    inactivity_timer = 0;
+  }
+
+  prev_status = new_status;
+
+  boolean controller_active = (inactivity_timer <= INACTIVITY_TIME_MS);
+  if (not controller_active) {
+    inactivity_timer = INACTIVITY_TIME_MS; // so we don't keep growing and eventually overflow (though admittedly that would probably take days)
+  }
+
+  return controller_active;
+}
+
+
+void send_controller_update(unsigned long new_status){
+  byte sendbuffer[4];
+  // Split the status into 4 bytes:
+  sendbuffer[0] = new_status >> 24;
+  sendbuffer[1] = new_status >> 16;
+  sendbuffer[2] = new_status >> 8;
+  sendbuffer[3] = new_status;
+
+  // Radio controller status back to console
+  radio.send(TONODEID, sendbuffer, 4);
+}
 
 
 void loop()
 {
+  static unsigned long n64_status = 0;
+  
   // Poll the controller
   n64_status = pollController();  
 
-  if ((n64_status != previous_n64_status) || (update_timer_ms >= 500)) {
-    // If there has been a change since last time, or it's been too long since
-    // the last update was sent, send a n64_status update to the controller
-    // Split the status into 4 bytes:
-    sendbuffer[0] = n64_status >> 24;
-    sendbuffer[1] = n64_status >> 16;
-    sendbuffer[2] = n64_status >> 8;
-    sendbuffer[3] = n64_status;
+  // Check whether the controller is active
+  boolean controller_active = controller_state_recently_changed(n64_status);
+  digitalWrite(LED_PIN, controller_active);
   
-    // Radio controller status back to console
-    radio.send(TONODEID, sendbuffer, 4);
+  if (controller_active) 
+    send_controller_update(n64_status);
 
-    // Reset the timer
-    update_timer_ms = 0;
-
-  } else {
-    update_timer_ms += 20;
-  }
-  previous_n64_status = n64_status;
   // Wait
-  delay(20);
+  delay(LOOP_PERIOD_MS);
 }
