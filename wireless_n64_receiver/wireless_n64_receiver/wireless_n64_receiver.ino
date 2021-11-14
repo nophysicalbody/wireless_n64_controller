@@ -7,12 +7,12 @@
 #define D_DOWN_IDX  0x04000000
 #define D_LEFT_IDX  0x02000000
 #define D_RIGHT_IDX 0x01000000
-#define L_IDX       0x00400000
-#define R_IDX       0x00200000
-#define C_UP_IDX    0x00100000
-#define C_DOWN_IDX  0x00080000
-#define C_LEFT_IDX  0x00040000
-#define C_RIGHT_IDX 0x00020000
+#define L_IDX       0x00200000
+#define R_IDX       0x00100000
+#define C_UP_IDX    0x00080000
+#define C_DOWN_IDX  0x00040000
+#define C_LEFT_IDX  0x00020000
+#define C_RIGHT_IDX 0x00010000
 #define X_IDX       0x0000FF00
 #define Y_IDX       0x000000FF
 
@@ -120,9 +120,8 @@ void loop()
       n64_status += radio.DATA[i];
     }
 
-    // If the B button is pressed, light the green indicator
+    // If the A button is pressed, light the green indicator
     digitalWrite(GN_LED, bool(n64_status & A_IDX));
-
     // If the Start button is pressed, light the red indicator
     digitalWrite(RD_LED, bool(n64_status & START_IDX));
 
